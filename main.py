@@ -1,4 +1,5 @@
 from __future__ import print_function
+import sys
 import pickle
 import os.path
 from googleapiclient.discovery import build
@@ -42,11 +43,10 @@ def connect_to_spreadsheet_service():
     return sheet
 
 
-def read_from_gdrive(sheet_service):
+def read_from_gdrive(sheet_service, sheet_id):
     # The ID and range of a sample spreadsheet.
-    SAMPLE_SPREADSHEET_ID = '1oL8s3Fcpp0oZmERX52nnbLgWUNRYlrunmlDbOIOVUfc'
     SAMPLE_RANGE_NAME = 'sheet1!A2:H33'
-    result = sheet_service.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID,
+    result = sheet_service.values().get(spreadsheetId=sheet_id,
                                         range=SAMPLE_RANGE_NAME, 
                                         majorDimension='COLUMNS').execute()
     values = result.get('values', [])
@@ -102,5 +102,7 @@ def generate_insert_queries_for_locale(values, country, locale, out_file):
 
 
 if __name__ == "__main__":
+    ### SAMPLE_SPREADSHEET_ID = '1oL8s3Fcpp0oZmERX52nnbLgWUNRYlrunmlDbOIOVUfc'
+    sheet_id = sys.argv[1]
     sheet_service = connect_to_spreadsheet_service()
-    read_from_gdrive(sheet_service)
+    read_from_gdrive(sheet_service, sheet_id)
