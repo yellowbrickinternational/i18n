@@ -42,10 +42,10 @@ def connect_to_spreadsheet_service():
     return sheet
 
 
-def read_from_gdrive(sheet_service, filename):
+def read_from_gdrive(sheet_service):
     # The ID and range of a sample spreadsheet.
-    SAMPLE_SPREADSHEET_ID = '14fAvcZ6Ze9kJHm9p9omylYz9anrv9ZNjCepeAxK3LJo'
-    SAMPLE_RANGE_NAME = 'sheet1!A2:I39'
+    SAMPLE_SPREADSHEET_ID = '1oL8s3Fcpp0oZmERX52nnbLgWUNRYlrunmlDbOIOVUfc'
+    SAMPLE_RANGE_NAME = 'sheet1!A2:H33'
     result = sheet_service.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID,
                                         range=SAMPLE_RANGE_NAME, 
                                         majorDimension='COLUMNS').execute()
@@ -78,22 +78,29 @@ def generate_insert_queries_for_country(values, country):
             country_queries_file.write('\n\n')
 
 def generate_insert_queries_for_locale(values, country, locale, out_file):
-    print('\tProcessing locale %s' % locale)
-    labels = values[0]
-    for index in range(len(labels)):
-        label = labels[index]
-        if len(label):
-            text_in_locale = values[LANGUAGES[locale]][index]
+    try:
+        print('\tProcessing locale %s' % locale)
+        labels = values[0]
+        for index in range(len(labels)):
+            label = labels[index]
+            if len(label):
+                texts_for_locale = values[LANGUAGES[locale]]
 
-            if text_in_locale == 'not needed':
-                print('\t\tSkipping %s, looks like translation is not needed' % label)
-            elif text_in_locale.strip() == '':
-                print('\t\tWarning: No translation found for %s' % label)
-            else:
-                query = 'insert into message (key, locale, text, description, mutator) values (\'%s\', \'%s\', \'%s\', \'labels release3\', \'labels release3\');' % (label, locale, text_in_locale)
-                out_file.write('%s\n' % (query))
+                text_in_locale = values[LANGUAGES[locale]][index] if index < len(texts_for_locale) else ''
+
+                if text_in_locale == 'not needed':
+                    print('\t\tSkipping %s, looks like translation is not needed' % label)
+                elif text_in_locale.strip() == '':
+                    print('\t\tWarning: No translation found for %s' % label)
+                    query = 'insert_or_update_message(\'%s\', \'%s\', \'%s\');' % (label, locale, text_in_locale)
+                    out_file.write('%s\n' % (query))
+                else:
+                    query = 'insert_or_update_message(\'%s\', \'%s\', \'%s\');' % (label, locale, text_in_locale)
+                    out_file.write('%s\n' % (query))
+    except Exception as ex:
+        print(ex.Value)
 
 
 if __name__ == "__main__":
     sheet_service = connect_to_spreadsheet_service()
-    read_from_gdrive(sheet_service, 'en_BG')
+    read_from_gdrive(sheet_service)
