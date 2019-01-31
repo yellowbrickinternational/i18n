@@ -1,1 +1,3 @@
 *.sql
+token.pickle
+credentials.json
