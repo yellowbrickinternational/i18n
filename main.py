@@ -45,7 +45,7 @@ def connect_to_spreadsheet_service():
 
 def read_from_gdrive(sheet_service, sheet_id):
     # The ID and range of a sample spreadsheet.
-    SAMPLE_RANGE_NAME = 'sheet1!A2:H33'
+    SAMPLE_RANGE_NAME = 'sheet1!A2:H43'
     result = sheet_service.values().get(spreadsheetId=sheet_id,
                                         range=SAMPLE_RANGE_NAME, 
                                         majorDimension='COLUMNS').execute()
@@ -72,10 +72,13 @@ def generate_insert_queries(values):
 
 def generate_insert_queries_for_country(values, country):
     print('Processing country %s' % country)
-    with open(os.path.join('.', 'labels.%s.sql' % (country)), 'w') as country_queries_file:
+    with open(os.path.join('.', 'labels.%s.sql' % (country)), 'w', encoding='utf-8') as country_queries_file:
         for locale in COUNTRIES[country]:
             generate_insert_queries_for_locale(values, country, locale, country_queries_file)
             country_queries_file.write('\n\n')
+
+def label_match_country(country, label_apply_for):
+    return (label_apply_for == country) or (label_apply_for == 'all')
 
 def generate_insert_queries_for_locale(values, country, locale, out_file):
     try:
@@ -83,9 +86,11 @@ def generate_insert_queries_for_locale(values, country, locale, out_file):
         labels = values[0]
         for index in range(len(labels)):
             label = labels[index]
-            if len(label):
-                texts_for_locale = values[LANGUAGES[locale]]
+            label_apply_for = values[2][index]
+            match = label_match_country(country, label_apply_for)
 
+            if len(label) and match:
+                texts_for_locale = values[LANGUAGES[locale]]
                 text_in_locale = values[LANGUAGES[locale]][index] if index < len(texts_for_locale) else ''
 
                 if text_in_locale == 'not needed':
