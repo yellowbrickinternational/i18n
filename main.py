@@ -45,7 +45,7 @@ def connect_to_spreadsheet_service():
 
 def read_from_gdrive(sheet_service, sheet_id):
     # The ID and range of a sample spreadsheet.
-    SAMPLE_RANGE_NAME = 'sheet1!A2:H43'
+    SAMPLE_RANGE_NAME = 'sheet1'
     result = sheet_service.values().get(spreadsheetId=sheet_id,
                                         range=SAMPLE_RANGE_NAME, 
                                         majorDimension='COLUMNS').execute()
