@@ -2,6 +2,7 @@ from __future__ import print_function
 import sys
 import pickle
 import os.path
+import html
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -80,6 +81,7 @@ def generate_insert_queries_for_country(values, country):
 def label_match_country(country, label_apply_for):
     return (label_apply_for == country) or (label_apply_for == 'all')
 
+
 def generate_insert_queries_for_locale(values, country, locale, out_file):
     try:
         print('\tProcessing locale %s' % locale)
@@ -97,13 +99,14 @@ def generate_insert_queries_for_locale(values, country, locale, out_file):
                     print('\t\tSkipping %s, looks like translation is not needed' % label)
                 elif text_in_locale.strip() == '':
                     print('\t\tWarning: No translation found for %s' % label)
+                    text_in_locale = ' '
                     query = 'insert_or_update_message(\'%s\', \'%s\', \'%s\');' % (label, locale, text_in_locale)
                     out_file.write('%s\n' % (query))
                 else:
                     query = 'insert_or_update_message(\'%s\', \'%s\', \'%s\');' % (label, locale, text_in_locale)
                     out_file.write('%s\n' % (query))
     except Exception as ex:
-        print(ex.Value)
+        print(ex)
 
 
 if __name__ == "__main__":
