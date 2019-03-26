@@ -1,3 +1,4 @@
 *.sql
 token.pickle
 credentials.json
+release*/
