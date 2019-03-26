@@ -7,15 +7,15 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
-LANGUAGES = {'en_GB': 3, 
-             'nl_NL': 4, 
+LANGUAGES = {'en_GB': 3,
+             'nl_NL': 4,
              'de_DE': 5,
              'nl_BE': 6,
-             'fr_BE': 7 }
+             'fr_BE': 7}
 
-COUNTRIES = { 'nl': ['en_GB', 'nl_NL'],
-              'be': ['en_GB', 'nl_BE', 'fr_BE'],
-              'de': ['en_GB', 'de_DE']}
+COUNTRIES = {'nl': ['en_GB', 'nl_NL'],
+             'be': ['en_GB', 'nl_BE', 'fr_BE'],
+             'de': ['en_GB', 'de_DE']}
 
 
 def connect_to_spreadsheet_service():
@@ -48,7 +48,7 @@ def read_from_gdrive(sheet_service, sheet_id):
     # The ID and range of a sample spreadsheet.
     SAMPLE_RANGE_NAME = 'sheet1'
     result = sheet_service.values().get(spreadsheetId=sheet_id,
-                                        range=SAMPLE_RANGE_NAME, 
+                                        range=SAMPLE_RANGE_NAME,
                                         majorDimension='COLUMNS').execute()
     values = result.get('values', [])
 
@@ -57,6 +57,7 @@ def read_from_gdrive(sheet_service, sheet_id):
     else:
         generate_insert_queries(values)
         generate_delete_queries(values)
+
 
 def generate_delete_queries(values):
     labels = values[0]
@@ -67,9 +68,11 @@ def generate_delete_queries(values):
 
             delete_queries_file.write(query)
 
+
 def generate_insert_queries(values):
     for country in COUNTRIES:
         generate_insert_queries_for_country(values, country)
+
 
 def generate_insert_queries_for_country(values, country):
     print('Processing country %s' % country)
@@ -77,6 +80,7 @@ def generate_insert_queries_for_country(values, country):
         for locale in COUNTRIES[country]:
             generate_insert_queries_for_locale(values, country, locale, country_queries_file)
             country_queries_file.write('\n\n')
+
 
 def label_match_country(country, label_apply_for):
     return (label_apply_for == country) or (label_apply_for == 'all')
@@ -110,7 +114,6 @@ def generate_insert_queries_for_locale(values, country, locale, out_file):
 
 
 if __name__ == "__main__":
-    ### SAMPLE_SPREADSHEET_ID = '1oL8s3Fcpp0oZmERX52nnbLgWUNRYlrunmlDbOIOVUfc'
     sheet_id = sys.argv[1]
     sheet_service = connect_to_spreadsheet_service()
     read_from_gdrive(sheet_service, sheet_id)
