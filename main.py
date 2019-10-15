@@ -3,15 +3,17 @@ import sys
 import pickle
 import os.path
 import html
+import sys, traceback
+
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
-LANGUAGES = {'en_GB': 3,
-             'nl_NL': 4,
-             'de_DE': 5,
-             'nl_BE': 6,
-             'fr_BE': 7}
+LANGUAGES = {'en_GB': 4,
+             'nl_NL': 5,
+             'de_DE': 6,
+             'nl_BE': 7,
+             'fr_BE': 8}
 
 COUNTRIES = {'nl': ['en_GB', 'nl_NL'],
              'be': ['en_GB', 'nl_BE', 'fr_BE'],
@@ -76,41 +78,77 @@ def generate_insert_queries(values):
 
 def generate_insert_queries_for_country(values, country):
     print('Processing country %s' % country)
-    with open(os.path.join('.', 'labels.%s.sql' % (country)), 'w', encoding='utf-8') as country_queries_file:
+    with open(os.path.join('brickparking', 'labels.%s.sql' % (country)), 'w', encoding='utf-8') as country_queries_file, \
+        open(os.path.join('billing', 'labels.%s.sql' % (country)), 'w', encoding='utf-8') as billing_country_queries_file, \
+        open(os.path.join('app', 'labels.%s.sql' % (country)), 'w', encoding='utf-8') as app_country_queries_file:
         for locale in COUNTRIES[country]:
-            generate_insert_queries_for_locale(values, country, locale, country_queries_file)
+            generate_insert_queries_for_locale(values, country, locale, country_queries_file, billing_country_queries_file, app_country_queries_file)
             country_queries_file.write('\n\n')
+            billing_country_queries_file.write('\n\n')
 
 
 def label_match_country(country, label_apply_for):
-    return (label_apply_for == country) or (label_apply_for == 'all')
+    return (label_apply_for.lower() == country) or (label_apply_for.lower() == 'all')
 
 
-def generate_insert_queries_for_locale(values, country, locale, out_file):
+def locale_name_from_schema(locale, schema):
+    if schema.lower() == 'billing':
+        return ('billing', locale.lower())
+
+    if schema.lower() == 'app':
+        return ('app', locale)
+
+    return ('brickparking', locale)
+
+
+def generate_insert_queries_for_locale(values, country, locale, bpp_out_file, billing_out_file, app_out_file):
     try:
         print('\tProcessing locale %s' % locale)
         labels = values[0]
+        print('labels length = %d' % len(labels))
         for index in range(len(labels)):
             label = labels[index]
             label_apply_for = values[2][index]
             match = label_match_country(country, label_apply_for)
 
+            schema = values[3][index]
+            schema, new_locale = locale_name_from_schema(locale, schema)
+
+            print("%s - %s" % (schema, label))
+            if (schema == 'billing'):
+                out_file = billing_out_file
+            elif (schema == 'app'):
+                out_file = app_out_file
+            else:
+                out_file = bpp_out_file
+
             if len(label) and match:
                 texts_for_locale = values[LANGUAGES[locale]]
                 text_in_locale = values[LANGUAGES[locale]][index] if index < len(texts_for_locale) else ''
 
-                if text_in_locale == 'not needed':
-                    print('\t\tSkipping %s, looks like translation is not needed' % label)
-                elif text_in_locale.strip() == '':
-                    print('\t\tWarning: No translation found for %s' % label)
-                    text_in_locale = ' '
-                    query = 'insert_or_update_message(\'%s\', \'%s\', \'%s\');' % (label, locale, text_in_locale)
-                    out_file.write('%s\n' % (query))
+                if schema == 'app':
+                    if text_in_locale == 'not needed':
+                        print('\t\tSkipping %s, looks like translation is not needed' % label)
+                    elif text_in_locale.strip() == '':
+                        print('\t\tWarning: No translation found for %s' % label)
+                    else:
+                        #query = 'update message set text=\'%s\', application_source=\'APP\', application_version=\'100\' where key=\'%s\' and locale=\'%s\';' % (text_in_locale, label, new_locale)
+                        query = 'insert into message(key, text, locale, application_source, application_version) values (\'%s\', \'%s\', \'%s\', \'APP\', \'100\');' % (label, text_in_locale, new_locale)
+                        out_file.write('%s\n' % (query))
                 else:
-                    query = 'insert_or_update_message(\'%s\', \'%s\', \'%s\');' % (label, locale, text_in_locale)
-                    out_file.write('%s\n' % (query))
+                    if text_in_locale == 'not needed':
+                        print('\t\tSkipping %s, looks like translation is not needed' % label)
+                    elif text_in_locale.strip() == '':
+                        print('\t\tWarning: No translation found for %s' % label)
+                        text_in_locale = ' '
+                        query = 'insert_or_update_message(\'%s\', \'%s\', \'%s\');' % (label, new_locale, text_in_locale)
+                        out_file.write('%s\n' % (query))
+                    else:
+                        query = 'insert_or_update_message(\'%s\', \'%s\', \'%s\');' % (label, new_locale, text_in_locale)
+                        out_file.write('%s\n' % (query))
     except Exception as ex:
-        print(ex)
+        traceback.print_exc(file=sys.stdout)
+
 
 
 if __name__ == "__main__":
