@@ -100,6 +100,18 @@ def locale_name_from_schema(locale, schema):
 
     return ('brickparking', locale)
 
+def escape_text(text):
+    text_return = ''
+    escape_chars = { '\'' }
+
+    for c in text:
+        if c in escape_chars:
+            text_return += '\'%c' % (c)
+        else:
+            text_return += c
+        
+    return text_return
+
 
 def generate_insert_queries_for_locale(values, country, locale, bpp_out_file, billing_out_file, app_out_file):
     try:
@@ -126,14 +138,21 @@ def generate_insert_queries_for_locale(values, country, locale, bpp_out_file, bi
                 texts_for_locale = values[LANGUAGES[locale]]
                 text_in_locale = values[LANGUAGES[locale]][index] if index < len(texts_for_locale) else ''
 
+                text_in_locale = escape_text(text_in_locale)
+
                 if schema == 'app':
                     if text_in_locale == 'not needed':
                         print('\t\tSkipping %s, looks like translation is not needed' % label)
                     elif text_in_locale.strip() == '':
                         print('\t\tWarning: No translation found for %s' % label)
+                        text_in_locale = ' '
+                        query = 'insert_or_update_message(\'%s\', \'%s\', \'%s\');' % (label, new_locale, text_in_locale)
+                        #query = 'update message set application_source=\'APP\', application_version=\'100\' where key=\'%s\' and locale=\'%s\';' % (label, new_locale)
+                        out_file.write('%s\n' % (query))
                     else:
-                        #query = 'update message set text=\'%s\', application_source=\'APP\', application_version=\'100\' where key=\'%s\' and locale=\'%s\';' % (text_in_locale, label, new_locale)
-                        query = 'insert into message(key, text, locale, application_source, application_version) values (\'%s\', \'%s\', \'%s\', \'APP\', \'100\');' % (label, text_in_locale, new_locale)
+                        query = 'insert_or_update_message(\'%s\', \'%s\', \'%s\');' % (label, new_locale, text_in_locale)
+
+                        #query = 'update message set application_source=\'APP\', application_version=\'100\' where key=\'%s\' and locale=\'%s\';' % (label, new_locale)
                         out_file.write('%s\n' % (query))
                 else:
                     if text_in_locale == 'not needed':
