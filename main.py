@@ -19,6 +19,8 @@ COUNTRIES = {'nl': ['en_GB', 'nl_NL'],
              'be': ['en_GB', 'nl_BE', 'fr_BE'],
              'de': ['en_GB', 'de_DE']}
 
+root = '.'
+
 
 def connect_to_spreadsheet_service():
     SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
@@ -76,15 +78,31 @@ def generate_insert_queries(values):
         generate_insert_queries_for_country(values, country)
 
 
+def prepare_folder_layout(root):
+    folders = ['brickparking', 'billing', 'app']
+
+    for folder in folders:
+        if not os.path.exists('%s/%s' % (root, folder)):
+            os.makedirs('%s/%s' % (root, folder))
+
 def generate_insert_queries_for_country(values, country):
     print('Processing country %s' % country)
-    with open(os.path.join('brickparking', 'labels.%s.sql' % (country)), 'w', encoding='utf-8') as country_queries_file, \
-        open(os.path.join('billing', 'labels.%s.sql' % (country)), 'w', encoding='utf-8') as billing_country_queries_file, \
-        open(os.path.join('app', 'labels.%s.sql' % (country)), 'w', encoding='utf-8') as app_country_queries_file:
+
+    prepare_folder_layout(root)
+
+    with open(os.path.join('%s/brickparking' % root, 'labels.%s.sql' % (country)), 'w', encoding='utf-8') as country_queries_file, \
+        open(os.path.join('%s/billing' % root, 'labels.%s.sql' % (country)), 'w', encoding='utf-8') as billing_country_queries_file, \
+        open(os.path.join('%s/app' % root, 'labels.%s.sql' % (country)), 'w', encoding='utf-8') as app_country_queries_file, \
+        open(os.path.join('%s/app' % root, 'update.labels.%s.sql' % (country)), 'w', encoding='utf-8') as app_update_country_queries_file:
         for locale in COUNTRIES[country]:
-            generate_insert_queries_for_locale(values, country, locale, country_queries_file, billing_country_queries_file, app_country_queries_file)
-            country_queries_file.write('\n\n')
-            billing_country_queries_file.write('\n\n')
+            out_files = {
+                'brickparking': country_queries_file,
+                'billing': billing_country_queries_file,
+                'app': app_country_queries_file,
+                'app.update': app_update_country_queries_file
+            }
+            generate_insert_queries_for_locale(values, country, locale, out_files)
+
 
 
 def label_match_country(country, label_apply_for):
@@ -113,7 +131,7 @@ def escape_text(text):
     return text_return
 
 
-def generate_insert_queries_for_locale(values, country, locale, bpp_out_file, billing_out_file, app_out_file):
+def generate_insert_queries_for_locale(values, country, locale, out_files):
     try:
         print('\tProcessing locale %s' % locale)
         labels = values[0]
@@ -126,13 +144,9 @@ def generate_insert_queries_for_locale(values, country, locale, bpp_out_file, bi
             schema = values[3][index]
             schema, new_locale = locale_name_from_schema(locale, schema)
 
-            print("%s - %s" % (schema, label))
-            if (schema == 'billing'):
-                out_file = billing_out_file
-            elif (schema == 'app'):
-                out_file = app_out_file
-            else:
-                out_file = bpp_out_file
+            #print("%s - %s" % (schema, label))
+
+            out_file = out_files[schema]
 
             if len(label) and match:
                 texts_for_locale = values[LANGUAGES[locale]]
@@ -140,37 +154,29 @@ def generate_insert_queries_for_locale(values, country, locale, bpp_out_file, bi
 
                 text_in_locale = escape_text(text_in_locale)
 
-                if schema == 'app':
-                    if text_in_locale == 'not needed':
-                        print('\t\tSkipping %s, looks like translation is not needed' % label)
-                    elif text_in_locale.strip() == '':
-                        print('\t\tWarning: No translation found for %s' % label)
-                        text_in_locale = ' '
-                        query = 'insert_or_update_message(\'%s\', \'%s\', \'%s\');' % (label, new_locale, text_in_locale)
-                        #query = 'update message set application_source=\'APP\', application_version=\'100\' where key=\'%s\' and locale=\'%s\';' % (label, new_locale)
-                        out_file.write('%s\n' % (query))
-                    else:
-                        query = 'insert_or_update_message(\'%s\', \'%s\', \'%s\');' % (label, new_locale, text_in_locale)
-
-                        #query = 'update message set application_source=\'APP\', application_version=\'100\' where key=\'%s\' and locale=\'%s\';' % (label, new_locale)
-                        out_file.write('%s\n' % (query))
+                if text_in_locale == 'not needed':
+                    print('\t\tSkipping %s, looks like translation is not needed' % label)
+                elif text_in_locale.strip() == '':
+                    print('\t\tWarning: No translation found for %s' % label)
+                    text_in_locale = ' '
+                    query = 'insert_or_update_message(\'%s\', \'%s\', \'%s\');' % (label, new_locale, text_in_locale)
+                    out_file.write('%s\n' % (query))
                 else:
-                    if text_in_locale == 'not needed':
-                        print('\t\tSkipping %s, looks like translation is not needed' % label)
-                    elif text_in_locale.strip() == '':
-                        print('\t\tWarning: No translation found for %s' % label)
-                        text_in_locale = ' '
-                        query = 'insert_or_update_message(\'%s\', \'%s\', \'%s\');' % (label, new_locale, text_in_locale)
-                        out_file.write('%s\n' % (query))
-                    else:
-                        query = 'insert_or_update_message(\'%s\', \'%s\', \'%s\');' % (label, new_locale, text_in_locale)
-                        out_file.write('%s\n' % (query))
-    except Exception as ex:
+                    query = 'insert_or_update_message(\'%s\', \'%s\', \'%s\');' % (label, new_locale, text_in_locale)
+                    out_file.write('%s\n' % (query))
+                    
+                if schema == 'app':
+                    query = 'update message set application_source=\'APP\', application_version=\'100\' where key=\'%s\' and locale=\'%s\';' % (label, new_locale)
+                    out_files['app.update'].write('%s\n' % (query))
+
+    except Exception:
         traceback.print_exc(file=sys.stdout)
 
 
 
 if __name__ == "__main__":
     sheet_id = sys.argv[1]
+    root = sys.argv[2]
+
     sheet_service = connect_to_spreadsheet_service()
     read_from_gdrive(sheet_service, sheet_id)
