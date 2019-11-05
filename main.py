@@ -120,7 +120,7 @@ def locale_name_from_schema(locale, schema):
 
 def escape_text(text):
     text_return = ''
-    escape_chars = { '\'' }
+    escape_chars = {'\''}
 
     for c in text:
         if c in escape_chars:

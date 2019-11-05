@@ -1,2 +1,5 @@
+install:
+	pip install -r requirements.txt
+
 pep8:
-	pep8 main.py
+	pycodestyle main.py
